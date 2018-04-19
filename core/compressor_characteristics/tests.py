@@ -105,3 +105,11 @@ class TestCharacteristic(unittest.TestCase):
 
     def test_branches_plot(self):
         self.charact.plot_branches_2d(frequency_int=(0.69, 1.12), branch_num=10)
+
+    def test_nom_point(self):
+        eta_nom = self.charact.get_eta_c_stag_rel(1, 1)
+        eta_res = abs(eta_nom - 1) / 1
+        G_nom = self.charact.get_G_rel(1, 1)
+        G_res = abs(G_nom - 1) / 1
+        self.assertAlmostEqual(eta_res, 0, places=2)
+        self.assertAlmostEqual(G_res, 0, places=2)
