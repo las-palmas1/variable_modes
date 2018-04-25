@@ -1,8 +1,10 @@
 from gas_turbine_cycle.gases import IdealGas, Air, NaturalGasCombustionProducts
 from gas_turbine_cycle.fuels import Fuel, NaturalGas
+from gas_turbine_cycle.tools.functions import get_mixture_temp
 from gas_turbine_cycle.tools.gas_dynamics import GasDynamicFunctions as gd
 from .compressor_characteristics.tools import Characteristics
 import numpy as np
+from scipy.optimize import newton, fsolve
 
 
 class Model:
@@ -27,6 +29,8 @@ class ModelStaticPar(Model):
         self.p_in = None
         self.T_out = None
         self.p_out = None
+        self.rho_in = None
+        self.rho_out = None
         self.c_in = None
         self.c_out = None
         self.lam_in = None
@@ -57,7 +61,7 @@ class ModelSingleWorkFluid(Model):
 
 class CompressorModel(ModelSingleWorkFluid):
     def __init__(
-            self, characteristics: Characteristics, T_stag_in, p_stag_in, pi_c_stag_norm_rel, n_norm_rel,
+            self, characteristics: Characteristics, T_stag_in, p_stag_in, pi_c_stag_rel, n_norm_rel,
             T_stag_in_nom, p_stag_in_nom, G_in_nom, eta_c_stag_nom, n_nom, pi_c_stag_nom,
             G_fuel_in=0, p_a=1e5, T_a=288, sigma_in=0.99, work_fluid: IdealGas=Air(), precision=0.0001,
     ):
@@ -65,7 +69,7 @@ class CompressorModel(ModelSingleWorkFluid):
         self.characteristics = characteristics
         self.T_stag_in = T_stag_in
         self.p_stag_in = p_stag_in
-        self.pi_c_stag_norm_rel = pi_c_stag_norm_rel
+        self.pi_c_stag_rel = pi_c_stag_rel
         self.n_norm_rel = n_norm_rel
         self.T_stag_in_nom = T_stag_in_nom
         self.p_stag_in_nom = p_stag_in_nom
@@ -101,16 +105,16 @@ class CompressorModel(ModelSingleWorkFluid):
 
     def compute(self):
         self.characteristics.compute()
-        self.G_fuel_out = self.G_fuel_out
+        self.G_fuel_out = self.G_fuel_in
         self.n_norm_nom = self.n_nom * np.sqrt(self.T_a / self.T_stag_in_nom)
         self.G_in_norm_nom = self.G_in_nom * self.p_a / self.p_stag_in_nom * np.sqrt(self.T_stag_in_nom / self.T_a)
-        self.G_in_norm_rel = self.characteristics.get_G_rel(self.n_norm_rel, self.pi_c_stag_norm_rel)
+        self.G_in_norm_rel = self.characteristics.get_G_rel(self.n_norm_rel, self.pi_c_stag_rel)
         self.G_in_norm = self.G_in_norm_nom * self.G_in_norm_rel
         self.G_in = self.G_in_norm * self.p_stag_in / self.p_a * np.sqrt(self.T_a / self.T_stag_in)
         self.n_norm = self.n_norm_rel * self.n_norm_nom
         self.n = self.n_norm * np.sqrt(self.T_stag_in / self.T_a)
         self.eta_c_stag_rel = self.characteristics.get_eta_c_stag_rel(self.n_norm_rel, self.G_in_norm_rel)
-        self.pi_c_stag = self.pi_c_stag_norm_rel * self.pi_c_stag_nom
+        self.pi_c_stag = self.pi_c_stag_rel * self.pi_c_stag_nom
         self.eta_c_stag = self.eta_c_stag_rel * self.eta_c_stag_nom
         self.p_stag_out = self.p_stag_in * self.pi_c_stag * self.sigma_in
         self.ad_proc_res = self.work_fluid.get_ad_temp(self.T_stag_in, self.p_stag_in * self.sigma_in,
@@ -119,11 +123,11 @@ class CompressorModel(ModelSingleWorkFluid):
         self.H_stag = self.ad_proc_res[1]
         self.L = self.H_stag / self.eta_c_stag
         self.T_stag_out = self.work_fluid.get_temp(self.T_stag_in, self.L, self.precision)
-        self.G_out = self.G_out
+        self.G_out = self.G_in
         self.N = self.L * self.G_in
 
 
-class Sink(Model):
+class SinkModel(Model):
     def __init__(self, T_stag_in, p_stag_in, G_in, G_fuel_in, G_c1_in, g_cool):
         Model.__init__(self)
         self.G_c1_in = G_c1_in
@@ -136,7 +140,7 @@ class Sink(Model):
     def compute(self):
         self.T_stag_out = self.T_stag_in
         self.p_stag_out = self.p_stag_in
-        self.G_fuel_out = self.G_fuel_out
+        self.G_fuel_out = self.G_fuel_in
         self.G_out = self.G_in - self.G_c1_in * self.g_cool
 
 
@@ -280,7 +284,100 @@ class OutletTurbineModel(TurbineModel):
         self.c_out = self.lam_out * self.a_cr_out
 
 
+class SourceModel(ModelSingleWorkFluid):
+    def __init__(
+            self, T_stag_in, p_stag_in, G_in, G_fuel_in, g_cool, G_c1_in, T_cool, cool_fluid: IdealGas=Air(),
+            work_fluid: IdealGas=NaturalGasCombustionProducts(), precision=0.0001
+    ):
+        ModelSingleWorkFluid.__init__(self)
+        self.T_stag_in = T_stag_in
+        self.p_stag_in = p_stag_in
+        self.G_in = G_in
+        self.G_fuel_in = G_fuel_in
+        self.g_cool = g_cool
+        self.G_c1_in = G_c1_in
+        self.T_cool = T_cool
+        self.cool_fluid = cool_fluid
+        self.work_fluid = work_fluid
+        self.precision = precision
 
+        self.G_cool = None
+        self.fuel_content_in = None
+        self.fuel_content_out = None
+        self.alpha_in = None
+        self.alpha_out = None
+
+    def compute(self):
+        self.G_fuel_out = self.G_fuel_in
+        self.G_cool = self.g_cool * self.G_c1_in
+        self.G_out = self.G_in + self.G_cool
+        self.fuel_content_in = self.G_fuel_in / (self.G_in - self.G_fuel_in)
+        self.fuel_content_out = self.G_fuel_out / (self.G_out - self.G_fuel_out)
+        self.alpha_in = 1 / (self.work_fluid.l0 * self.fuel_content_in)
+        self.alpha_out = 1 / (self.work_fluid.l0 * self.fuel_content_out)
+        self.p_stag_out = self.p_stag_in
+        self.work_fluid.alpha = self.alpha_in
+        self.T_stag_out = get_mixture_temp(
+            self.work_fluid, self.cool_fluid, self.T_stag_in, self.T_cool, self.G_in, self.G_cool, self.alpha_out,
+            self.precision
+        )[0]
+
+
+class OutletModel(ModelSingleWorkFluid, ModelStaticPar):
+    def __init__(
+            self, T_stag_in, p_stag_in, G_in, G_fuel_in, c_in, F_in, F_out, sigma,
+            work_fluid: IdealGas=NaturalGasCombustionProducts()
+    ):
+        ModelSingleWorkFluid.__init__(self)
+        ModelStaticPar.__init__(self)
+        self.T_stag_in = T_stag_in
+        self.p_stag_in = p_stag_in
+        self.G_in = G_in
+        self.G_fuel_in = G_fuel_in
+        self.c_in = c_in
+        self.F_in = F_in
+        self.F_out = F_out
+        self.sigma = sigma
+        self.work_fluid = work_fluid
+        self.fuel_content = None
+        self.alpha = None
+        self.c_p = None
+        self.k = None
+        self.static_out = None
+
+    @classmethod
+    def get_static(cls, c, T_stag, p_stag, k, R):
+        a_cr = gd.a_cr(T_stag, k, R)
+        lam = c / a_cr
+        tau = gd.tau_lam(lam, k)
+        pi = gd.pi_lam(lam, k)
+        T = T_stag * tau
+        p = p_stag * pi
+        rho = p / (R * T)
+        return T, p, rho, lam
+
+    def compute(self):
+        self.fuel_content = self.G_fuel_in / (self.G_in - self.G_fuel_in)
+        self.alpha = 1 / (self.work_fluid.l0 * self.fuel_content)
+        self.G_fuel_out = self.G_fuel_in
+        self.G_out = self.G_in
+        self.c_p = self.work_fluid.c_p_real_func(self.T_stag_in, alpha=self.alpha)
+        self.k = self.work_fluid.k_func(self.c_p)
+        self.T_stag_out = self.T_stag_in
+        self.p_stag_out = self.p_stag_in * self.sigma
+        self.T_in, self.p_in, self.rho_in, self.lam_in = self.get_static(
+            self.c_in, self.T_stag_in, self.p_stag_in, self.k, self.work_fluid.R
+        )
+        self.c_out = newton(
+            lambda c: self.F_out * c * self.get_static(c, self.T_stag_out, self.p_stag_out,
+                                                        self.k, self.work_fluid.R)[2] - self.G_out,
+            x0=self.c_in * 0.9
+        )
+        self.static_out = self.get_static(self.c_out, self.T_stag_out, self.p_stag_out, self.k, self.work_fluid.R)
+        self.T_out = self.static_out[0]
+        self.p_out = self.static_out[1]
+        self.rho_out = self.static_out[2]
+        self.lam_out = self.static_out[3]
 
 
 

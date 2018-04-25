@@ -1,5 +1,5 @@
-from .models import CombustionChamberModel, OutletTurbineModel, CompressorModel
-from .compressor_characteristics.storage import From16To18Pi
+from ..models import CombustionChamberModel, OutletTurbineModel, CompressorModel, OutletModel
+from ..compressor_characteristics.storage import From16To18Pi
 from compressor.average_streamline.compressor import Compressor
 from compressor.average_streamline.dist_tools import QuadraticBezier
 import unittest
@@ -64,7 +64,7 @@ class ModelsTests(unittest.TestCase):
         eta_rel_dist = QuadraticBezier(0.84, 0.84, stage_num=comp_stage_num,
                                        angle1=np.radians(3), angle2=np.radians(3))
         c1_a_rel_dist = QuadraticBezier(0.4, 0.4, stage_num=comp_stage_num,
-                                       angle1=np.radians(10), angle2=np.radians(10))
+                                        angle1=np.radians(10), angle2=np.radians(10))
         self.comp = Compressor(
             work_fluid=Air(),
             stage_num=comp_stage_num,
@@ -91,7 +91,7 @@ class ModelsTests(unittest.TestCase):
             characteristics=From16To18Pi(),
             T_stag_in=self.comp.T0_stag,
             p_stag_in=self.comp.p0_stag,
-            pi_c_stag_norm_rel=1,
+            pi_c_stag_rel=1,
             n_norm_rel=1,
             T_stag_in_nom=self.comp.T0_stag,
             p_stag_in_nom=self.comp.p0_stag,
@@ -101,6 +101,9 @@ class ModelsTests(unittest.TestCase):
             pi_c_stag_nom=self.comp.pi_c_stag,
             precision=0.0001
         )
+        self.T_stag_in_outlet = np.linspace(300, 1000, 5)
+        self.G_in_outlet = np.linspace(2, 40, 5)
+        self.dif_outlet = np.linspace(1.1, 10.5, 5)
 
     def test_comb_chamber(self):
         self.comb_chamber.compute()
@@ -152,4 +155,36 @@ class ModelsTests(unittest.TestCase):
         )
         H_c_res = abs(self.comp_model.H_stag - H_c_stag) / H_c_stag
         self.assertAlmostEqual(H_c_res, 0, places=2)
+
+    def test_outlet(self):
+        for T_stag_in in self.T_stag_in_outlet:
+            for G_in in self.G_in_outlet:
+                for dif in self.dif_outlet:
+                    print('T_stag_in = %.1f, G_in = %.3f, dif = %.3f' % (T_stag_in, G_in, dif))
+                    p_stag_in = 1.2e5
+                    work_fluid = NaturalGasCombustionProducts()
+                    G_fuel = 0.1
+                    alpha = 1 / (work_fluid.l0 * G_fuel / (G_in - G_fuel))
+                    c_p = work_fluid.c_p_real_func(T_stag_in, alpha=alpha)
+                    k = work_fluid.k_func(c_p)
+                    F_in = 0.25
+                    q = G_in * np.sqrt(work_fluid.R * T_stag_in) / (F_in * p_stag_in * gd.m(k))
+                    lam = gd.lam(k, q=q)
+                    a_cr = gd.a_cr(T_stag_in, k, work_fluid.R)
+                    c_in = a_cr * lam
+                    outlet = OutletModel(
+                        T_stag_in=T_stag_in,
+                        p_stag_in=1.2e5,
+                        G_in=G_in,
+                        G_fuel_in=G_fuel,
+                        c_in=c_in,
+                        F_in=F_in,
+                        F_out=F_in * dif,
+                        sigma=0.99
+                    )
+                    outlet.compute()
+                    G_in = outlet.rho_in * outlet.F_in * outlet.c_in
+                    G_out = outlet.rho_out * outlet.F_out * outlet.c_out
+                    G_res = abs(G_out - G_in) / G_in
+                    self.assertAlmostEqual(G_res, 0, places=3)
 
