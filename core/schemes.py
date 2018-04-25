@@ -135,11 +135,21 @@ class TwoShaftGeneratorVar1(Scheme):
         self.precision = precision
         self.option_args = kwargs
 
+        self.comp_model = None
+        self.sink_model = None
+        self.comb_chamber_model = None
+        self.comp_turb_st1_model = None
+        self.comp_turb_st2_model = None
+        self.source_st1_model = None
+        self.source_st2_model = None
+        self.power_turb_model = None
+        self.outlet_model = None
+
     def get_const_temp_option_condition(self, option_args: dict) -> bool:
         return 'T_g_stag_arr' in option_args and 'g_fuel_init' in option_args and 'T_stag_in' in option_args
 
     def get_power_option_condition(self, option_args: dict) -> bool:
-        return 'g_fuel' in option_args and 'T_stag_in_arr' in option_args
+        return 'g_fuel' in option_args and 'T_stag_in_arr' in option_args and 'N_e_max' in option_args
 
     def init_models_with_nominal_params(self):
         self.comp_model = CompressorModel(
@@ -316,6 +326,7 @@ class TwoShaftGeneratorVar1(Scheme):
         print('pi_t3_stag = %.2f' % pi_t3_stag)
         print('g_fuel = %.4f' % g_fuel)
         print('T_stag_in = %.2f\n' % T_stag_in)
+
         self.compute(pi_c_stag_rel, n_norm_rel, pi_t1_stag, pi_t2_stag, pi_t3_stag, g_fuel, T_stag_in)
 
         G_t1_res = self.comp_turb_st1_model.G_in - self.comp_turb_st1_model.G_in_char
@@ -333,6 +344,10 @@ class TwoShaftGeneratorVar1(Scheme):
         if 'T_g_stag' in kwargs:
             T_res = kwargs['T_g_stag'] - self.comb_chamber.T_stag_out
             return G_t1_res, G_t2_res, G_t3_res, L_res, p_out_res, T_res
+        elif 'N_e_max' in kwargs:
+            N_e_res = kwargs['N_e_max'] - self.N_e
+            print('N_e_res = %.3f\n' % p_out_res)
+            return G_t1_res, G_t2_res, G_t3_res, L_res, p_out_res, N_e_res
         else:
             return G_t1_res, G_t2_res, G_t3_res, L_res, p_out_res
 
@@ -364,8 +379,8 @@ class TwoShaftGeneratorVar1(Scheme):
         })
 
         if self.option == SchemeSolvingOption.POWER:
-            for x, T_stag_in in zip(self.x_arr, self.option_args['T_stag_in_arr']):
-                self.compute(*x, g_fuel=self.option_args['g_fuel'], T_stag_in=T_stag_in)
+            for x, T_stag_in, g_fuel in zip(self.x_arr, self.option_args['T_stag_in_arr'], self.g_fuel_arr):
+                self.compute(*x, g_fuel=g_fuel, T_stag_in=T_stag_in)
                 self.modes_params = self.modes_params.append(pd.DataFrame.from_dict({
                     'pi_c_stag_rel': [self.comp_model.pi_c_stag_rel],
                     'n_norm_rel': [self.comp_model.n_norm_rel],
@@ -419,42 +434,65 @@ class TwoShaftGeneratorVar1(Scheme):
             self.pi_c_stag_rel_init, self.n_norm_rel_init, self.pi_t1_stag_init,
             self.pi_t2_stag_init, self.pi_t3_stag_init
         ])
+        self.x_arr = np.zeros([len(self.option_args['T_stag_in_arr']), self.x0.shape[0]])
+        self.g_fuel_arr = np.zeros(len(self.option_args['T_stag_in_arr']))
         for n, T_stag_in in enumerate(self.option_args['T_stag_in_arr']):
             if n == 0:
                 sol = root(
                     fun=lambda x: self.get_residuals(x[0], x[1], x[2], x[3], x[4],
                                                      self.option_args['g_fuel'], T_stag_in),
-                    x0=self.x0, method='hybr'
+                    x0=self.x0
                 )
-                self.x_arr.append(sol.x)
+                self.x_arr[n] = sol.x
+                self.g_fuel_arr[n] = self.option_args['g_fuel']
+                self.compute(*sol.x, self.option_args['g_fuel'], T_stag_in)
+                if self.N_e >= self.option_args['N_e_max']:
+                    sol = root(
+                        fun=lambda x: self.get_residuals(x[0], x[1], x[2], x[3], x[4], x[5],
+                                                         T_stag_in, N_e_max=self.option_args['N_e_max']),
+                        x0=np.array(list(self.x0) + [self.g_fuel_arr[n]])
+                    )
+                    self.x_arr[n] = sol.x[0:5]
+                    self.g_fuel_arr[n] = sol.x[5]
             else:
                 sol = root(
                     fun=lambda x: self.get_residuals(x[0], x[1], x[2], x[3], x[4],
                                                      self.option_args['g_fuel'], T_stag_in),
-                    x0=self.x_arr[n - 1], method='hybr'
+                    x0=self.x_arr[n - 1]
                 )
-                self.x_arr.append(sol.x)
+                self.x_arr[n] = sol.x
+                self.g_fuel_arr[n] = self.option_args['g_fuel']
+                self.compute(*sol.x, self.option_args['g_fuel'], T_stag_in)
+                if self.N_e >= self.option_args['N_e_max']:
+                    sol = root(
+                        fun=lambda x: self.get_residuals(x[0], x[1], x[2], x[3], x[4], x[5],
+                                                         T_stag_in, N_e_max=self.option_args['N_e_max']),
+                        x0=np.array(list(self.x_arr[n - 1]) + [self.g_fuel_arr[n - 1]])
+                    )
+                    self.x_arr[n] = sol.x[0:5]
+                    self.g_fuel_arr[n] = sol.x[5]
 
     def _solve_with_const_temp_option(self):
         self.x0 = np.array([
             self.pi_c_stag_rel_init, self.n_norm_rel_init, self.pi_t1_stag_init,
             self.pi_t2_stag_init, self.pi_t3_stag_init, self.option_args['g_fuel_init']
         ])
+        self.x_arr = np.zeros([len(self.option_args['T_g_stag_arr']), self.x0.shape[0]])
         for n, T_g_stag in enumerate(self.option_args['T_g_stag_arr']):
             if n == 0:
                 sol = root(
                     fun=lambda x: self.get_residuals(x[0], x[1], x[2], x[3], x[4], x[5],
                                                      self.option_args['T_stag_in'], T_g_stag=T_g_stag),
-                    x0=self.x0, method='hybr'
+                    x0=self.x0
                 )
-                self.x_arr.append(sol.x)
+                self.x_arr[n] = sol.x
             else:
                 sol = root(
                     fun=lambda x: self.get_residuals(x[0], x[1], x[2], x[3], x[4], x[5],
                                                      self.option_args['T_stag_in'], T_g_stag=T_g_stag),
-                    x0=self.x_arr[n - 1], method='hybr'
+                    x0=self.x_arr[n - 1]
                 )
-                self.x_arr.append(sol.x)
+                self.x_arr = sol.x
 
 
 

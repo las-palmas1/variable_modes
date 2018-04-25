@@ -283,7 +283,8 @@ class SchemeTests(unittest.TestCase):
             outlet_diff_coef=2.5,
             precision=0.0001,
             g_fuel=self.comb_chamber.g_fuel_prime * self.comb_chamber.g_in,
-            T_stag_in_arr=np.linspace(278, 298, 20)
+            T_stag_in_arr=np.linspace(298, 273, 20),
+            N_e_max=16.4e6
         )
 
     def test_compressor_nominal_parameters_setting(self):
@@ -478,6 +479,30 @@ class SchemeTests(unittest.TestCase):
             T_stag_in_arr=self.scheme.modes_params['T_stag_in'] - 273,
             value_arr=self.scheme.modes_params['N_e'] / 1e6,
             value_label=r'$N_e,\ МВт$',
+            figsize=(7, 5)
+        )
+        self.scheme.plot_inlet_temp_plot(
+            T_stag_in_arr=self.scheme.modes_params['T_stag_in'] - 273,
+            value_arr=self.scheme.modes_params['g_fuel'],
+            value_label=r'$g_т$',
+            figsize=(7, 5)
+        )
+        self.scheme.plot_inlet_temp_plot(
+            T_stag_in_arr=self.scheme.modes_params['T_stag_in'] - 273,
+            value_arr=self.scheme.modes_params['T_out'] - 273,
+            value_label=r'$T_{вых}^*,\ С$',
+            figsize=(7, 5)
+        )
+        self.scheme.plot_inlet_temp_plot(
+            T_stag_in_arr=self.scheme.modes_params['T_stag_in'] - 273,
+            value_arr=self.scheme.modes_params['G_out'],
+            value_label=r'$G_{вых},\ кг/с$',
+            figsize=(7, 5)
+        )
+        self.scheme.plot_inlet_temp_plot(
+            T_stag_in_arr=self.scheme.modes_params['T_stag_in'] - 273,
+            value_arr=self.scheme.modes_params['eta_e'],
+            value_label=r'$\eta_{e}$',
             figsize=(7, 5)
         )
 
