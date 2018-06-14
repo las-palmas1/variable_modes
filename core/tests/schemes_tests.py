@@ -72,7 +72,7 @@ def get_compressor(p0_stag, T0_stag, G, n, stage_num, H_t_rel1, H_t_rel_delta, c
     comp = CompAvLine(
         work_fluid=Air(),
         stage_num=stage_num,
-        const_diam_par=0.5,
+        const_diam_par_arr=[0.5 for _ in range(stage_num)],
         p0_stag=p0_stag,
         T0_stag=T0_stag,
         G=G,
@@ -201,7 +201,7 @@ def compute_cycle_and_nodes(pi_c_stag=17, stage_num_arr=[int(i) for i in np.lins
     return solver, inlet, comp, sink, comb_chamber, comp_turbine, power_turbine, outlet, load
 
 
-class TestNominalCalculation(unittest.TestCase):
+class TestUnitsNominalCalculation(unittest.TestCase):
     def setUp(self):
         self.pi_c_stag = 17
         self.solver, self.inlet, self.comp, self.sink, self.comb_chamber, self.comp_turbine, \
@@ -282,12 +282,14 @@ class SchemeTests(unittest.TestCase):
             comp_char=From16To18Pi(),
             outlet_diff_coef=2.5,
             precision=0.0001,
-            g_fuel=self.comb_chamber.g_fuel_prime * self.comb_chamber.g_in,
+            g_fuel_init=self.comb_chamber.g_fuel_prime * self.comb_chamber.g_in,
             T_stag_in_arr=np.linspace(298, 273, 20),
-            N_e_max=16.4e6
+            N_e_max=16.4e6,
+            T_g_stag=self.comb_chamber.T_stag_out
         )
 
     def test_compressor_nominal_parameters_setting(self):
+        self.scheme.init_models_with_nominal_params()
         self.assertEqual(self.scheme.comp_model.p_stag_in_nom, self.inlet.p_stag_in)
         self.assertEqual(self.scheme.comp_model.T_stag_in_nom, self.inlet.T_stag_in)
         self.assertEqual(self.scheme.comp_model.n_nom, self.comp.n)
@@ -296,9 +298,11 @@ class SchemeTests(unittest.TestCase):
         self.assertEqual(self.scheme.comp_model.pi_c_stag_nom, self.comp.pi_c_stag)
 
     def test_sink_nominal_parameters_setting(self):
+        self.scheme.init_models_with_nominal_params()
         self.assertEqual(self.scheme.sink_model.g_cool, self.sink.g_cooling + self.sink.g_outflow)
 
     def test_comp_turbine_first_stage_nominal_parameters_setting(self):
+        self.scheme.init_models_with_nominal_params()
         self.assertEqual(self.scheme.comp_turb_st1_model.T_stag_in_nom, self.comp_turbine[0].T0_stag)
         self.assertEqual(self.scheme.comp_turb_st1_model.p_stag_in_nom, self.comp_turbine[0].p0_stag)
         self.assertEqual(self.scheme.comp_turb_st1_model.pi_t_stag_nom, self.comp_turbine[0].pi_stag)
@@ -307,9 +311,11 @@ class SchemeTests(unittest.TestCase):
         self.assertEqual(self.scheme.comp_turb_st1_model.eta_m, self.comp_turbine.eta_m)
 
     def test_source_first_stage_nominal_parameters_setting(self):
+        self.scheme.init_models_with_nominal_params()
         self.assertEqual(self.scheme.source_st1_model.T_cool, self.comp_turbine[0].T_cool)
 
     def test_comp_turbine_second_stage_nominal_parameters_setting(self):
+        self.scheme.init_models_with_nominal_params()
         self.assertEqual(self.scheme.comp_turb_st2_model.T_stag_in_nom, self.comp_turbine[1].T0_stag)
         self.assertEqual(self.scheme.comp_turb_st2_model.p_stag_in_nom, self.comp_turbine[1].p0_stag)
         self.assertEqual(self.scheme.comp_turb_st2_model.pi_t_stag_nom, self.comp_turbine[1].pi_stag)
@@ -318,9 +324,11 @@ class SchemeTests(unittest.TestCase):
         self.assertEqual(self.scheme.comp_turb_st2_model.eta_m, self.comp_turbine.eta_m)
 
     def test_source_second_stage_nominal_parameters_setting(self):
+        self.scheme.init_models_with_nominal_params()
         self.assertEqual(self.scheme.source_st2_model.T_cool, self.comp_turbine[1].T_cool)
 
     def test_power_turbine_nominal_parameters_setting(self):
+        self.scheme.init_models_with_nominal_params()
         self.assertEqual(self.scheme.power_turb_model.T_stag_in_nom, self.power_turbine.T_g_stag)
         self.assertEqual(self.scheme.power_turb_model.p_stag_in_nom, self.power_turbine.p_g_stag)
         self.assertEqual(self.scheme.power_turb_model.G_in_nom, self.power_turbine.G_turbine)
@@ -475,6 +483,12 @@ class SchemeTests(unittest.TestCase):
     def test_solving(self):
         self.scheme.solve()
         print(self.scheme.modes_params)
+        self.scheme.comp_model.characteristics.plot_modes_line(
+            pi_c_stag_rel_arr=self.scheme.modes_params['pi_c_stag_rel'],
+            G_norm_rel_arr=self.scheme.modes_params['G_in_norm_rel'],
+            eta_c_stag_rel_arr=self.scheme.modes_params['eta_c_stag_rel'],
+            figsize=(8, 7)
+        )
         self.scheme.plot_inlet_temp_plot(
             T_stag_in_arr=self.scheme.modes_params['T_stag_in'] - 273,
             value_arr=self.scheme.modes_params['N_e'] / 1e6,

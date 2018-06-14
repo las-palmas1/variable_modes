@@ -68,7 +68,7 @@ class ModelsTests(unittest.TestCase):
         self.comp = Compressor(
             work_fluid=Air(),
             stage_num=comp_stage_num,
-            const_diam_par=0.5,
+            const_diam_par_arr=[0.5 for _ in range(comp_stage_num)],
             p0_stag=1e5,
             T0_stag=288,
             G=28,

@@ -108,7 +108,7 @@ class CompressorModel(ModelSingleWorkFluid):
         self.G_fuel_out = self.G_fuel_in
         self.n_norm_nom = self.n_nom * np.sqrt(self.T_a / self.T_stag_in_nom)
         self.G_in_norm_nom = self.G_in_nom * self.p_a / self.p_stag_in_nom * np.sqrt(self.T_stag_in_nom / self.T_a)
-        self.G_in_norm_rel = self.characteristics.get_G_rel(self.n_norm_rel, self.pi_c_stag_rel)
+        self.G_in_norm_rel = self.characteristics.get_G_norm_rel(self.n_norm_rel, self.pi_c_stag_rel)
         self.G_in_norm = self.G_in_norm_nom * self.G_in_norm_rel
         self.G_in = self.G_in_norm * self.p_stag_in / self.p_a * np.sqrt(self.T_a / self.T_stag_in)
         self.n_norm = self.n_norm_rel * self.n_norm_nom

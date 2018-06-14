@@ -6,9 +6,9 @@ from .interp import Interp2D
 class TestsBranch(unittest.TestCase):
     def setUp(self):
         self.branch = FrequencyBranch(
-            freq_rel=0.9,
+            freq_norm_rel=0.9,
             pi_c_stag_rel=[0.28, 0.335, 0.36, 0.39, 0.465, 0.495, 0.555, 0.65, 0.74, 0.77],
-            G_rel=[0.785, 0.784, 0.7835, 0.7825, 0.780, 0.778, 0.776, 0.77, 0.75, 0.735],
+            G_norm_rel=[0.785, 0.784, 0.7835, 0.7825, 0.780, 0.778, 0.776, 0.77, 0.75, 0.735],
             eta_c_stag_rel=[0.91, 0.92, 0.93, 0.94, 0.96, 0.98, 1.0, 1.008, 1.003, 0.988],
             G_spline_deg=3,
             eta_c_spline_deg=3
@@ -109,7 +109,7 @@ class TestCharacteristic(unittest.TestCase):
     def test_nom_point(self):
         eta_nom = self.charact.get_eta_c_stag_rel(1, 1)
         eta_res = abs(eta_nom - 1) / 1
-        G_nom = self.charact.get_G_rel(1, 1)
+        G_nom = self.charact.get_G_norm_rel(1, 1)
         G_res = abs(G_nom - 1) / 1
         self.assertAlmostEqual(eta_res, 0, places=2)
         self.assertAlmostEqual(G_res, 0, places=2)

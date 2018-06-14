@@ -8,21 +8,21 @@ from abc import ABCMeta
 
 
 class FrequencyBranch:
-    def __init__(self, freq_rel: float,
+    def __init__(self, freq_norm_rel: float,
                  pi_c_stag_rel: typing.List[float],
-                 G_rel: typing.List[float],
+                 G_norm_rel: typing.List[float],
                  eta_c_stag_rel: typing.List[float],
                  G_spline_deg: int=3,
                  eta_c_spline_deg: int=3,
                  spline_smooth_factor: float = 2.,
                  spline_pnt_num: int=30
                  ):
-        self.freq_rel = freq_rel
+        self.freq_norm_rel = freq_norm_rel
         self.pi_c_stag_rel = pi_c_stag_rel
-        self.G_rel = G_rel
+        self.G_norm_rel = G_norm_rel
         self.eta_c_stag_rel = eta_c_stag_rel
-        assert len(pi_c_stag_rel) == len(G_rel) == len(eta_c_stag_rel), \
-            'In frequency branch %s parameters lists must have the same length' % freq_rel
+        assert len(pi_c_stag_rel) == len(G_norm_rel) == len(eta_c_stag_rel), \
+            'In frequency branch %s parameters lists must have the same length' % freq_norm_rel
         self.G_spline_deg = G_spline_deg
         self.eta_c_spline_deg = eta_c_spline_deg
         self.spline_smooth_factor = spline_smooth_factor
@@ -44,40 +44,40 @@ class FrequencyBranch:
         return G_rel_norm_new, eta_c_stag_rel_norm_new
 
     def compute(self):
-        self.G_splrep = splrep(self.pi_c_stag_rel, self.G_rel,
+        self.G_splrep = splrep(self.pi_c_stag_rel, self.G_norm_rel,
                                k=self.G_spline_deg, s=self.spline_smooth_factor)
-        self.G_rel.reverse()
+        self.G_norm_rel.reverse()
         self.eta_c_stag_rel.reverse()
-        self.eta_c_splrep = splrep(self.G_rel, self.eta_c_stag_rel,
+        self.eta_c_splrep = splrep(self.G_norm_rel, self.eta_c_stag_rel,
                                    k=self.eta_c_spline_deg, s=self.spline_smooth_factor)
-        self.G_rel.reverse()
+        self.G_norm_rel.reverse()
         self.eta_c_stag_rel.reverse()
 
     def plot(self, figsize=(7, 10)):
         plt.figure(figsize=figsize)
         plt.subplot(211)
-        plt.scatter(self.G_rel, self.pi_c_stag_rel, s=40, c='orange')
+        plt.scatter(self.G_norm_rel, self.pi_c_stag_rel, s=40, c='orange')
         if self.G_splrep:
             pi_c, G = self.get_G_spline_points(min(self.pi_c_stag_rel),
                                                max(self.pi_c_stag_rel),
                                                self.spline_pnt_num)
             plt.plot(G, pi_c, lw=1, ls='--', color='orange')
         plt.grid()
-        plt.xlim(round(min(self.G_rel), 1) - 0.05, round(max(self.G_rel), 1) + 0.05)
+        plt.xlim(round(min(self.G_norm_rel), 1) - 0.05, round(max(self.G_norm_rel), 1) + 0.05)
         plt.ylim(round(min(self.pi_c_stag_rel), 1) - 0.05, round(max(self.pi_c_stag_rel), 1) + 0.05)
         plt.xlabel(r'$\bar{G}_{пр}$', fontsize=10)
         plt.ylabel(r'$\bar{\pi}_к$', fontsize=10)
         plt.subplot(212)
-        plt.scatter(self.G_rel, self.eta_c_stag_rel, s=40, c='blue')
+        plt.scatter(self.G_norm_rel, self.eta_c_stag_rel, s=40, c='blue')
         if self.eta_c_splrep:
-            G, eta_c = self.get_eta_c_stag_spline_points(min(self.G_rel),
-                                                         max(self.G_rel),
+            G, eta_c = self.get_eta_c_stag_spline_points(min(self.G_norm_rel),
+                                                         max(self.G_norm_rel),
                                                          self.spline_pnt_num)
             plt.plot(G, eta_c, lw=1, ls='--', color='blue')
         plt.grid()
         plt.xlabel(r'$\bar{G}_{пр}$', fontsize=10)
         plt.ylabel(r'$\bar{\eta}_к^*$', fontsize=10)
-        plt.xlim(round(min(self.G_rel), 1) - 0.05, round(max(self.G_rel), 1) + 0.05)
+        plt.xlim(round(min(self.G_norm_rel), 1) - 0.05, round(max(self.G_norm_rel), 1) + 0.05)
         plt.ylim(round(min(self.eta_c_stag_rel), 1) - 0.05, round(max(self.eta_c_stag_rel), 1) + 0.05)
         plt.show()
 
@@ -104,7 +104,7 @@ class Characteristics(metaclass=ABCMeta):
             pi_c_arr, G_arr = branch.get_G_spline_points(pi_c_min, pi_c_max, pnt_num)
             G.append(list(G_arr))
             pi_c.append(list(pi_c_arr))
-            frequency.append([branch.freq_rel for _ in pi_c_arr])
+            frequency.append([branch.freq_norm_rel for _ in pi_c_arr])
         return frequency, pi_c, G
 
     def get_eta_c_grid(self, extend: float = 0.2, pnt_num: int = 50):
@@ -112,23 +112,23 @@ class Characteristics(metaclass=ABCMeta):
         G = []
         eta_c = []
         for branch in self.branches:
-            G_int = max(branch.G_rel) - min(branch.G_rel)
+            G_int = max(branch.G_norm_rel) - min(branch.G_norm_rel)
             G_extend = G_int * extend
-            G_min = min(branch.G_rel) - G_extend
-            G_max = max(branch.G_rel) + G_extend
+            G_min = min(branch.G_norm_rel) - G_extend
+            G_max = max(branch.G_norm_rel) + G_extend
             G_arr, eta_c_arr = branch.get_eta_c_stag_spline_points(G_min, G_max, pnt_num)
             G.append(list(G_arr))
             eta_c.append(list(eta_c_arr))
-            frequency.append([branch.freq_rel for _ in eta_c_arr])
+            frequency.append([branch.freq_norm_rel for _ in eta_c_arr])
         return frequency, G, eta_c,
 
-    def get_eta_c_stag_rel(self, freq_rel, G_rel):
+    def get_eta_c_stag_rel(self, freq_norm_rel, G_norm_rel):
         assert self._eta_c_interp is not None, 'Grid must be computed.'
-        return self._eta_c_interp(freq_rel, G_rel)
+        return self._eta_c_interp(freq_norm_rel, G_norm_rel)
 
-    def get_G_rel(self, freq_rel, pi_c_stag_rel):
+    def get_G_norm_rel(self, freq_norm_rel, pi_c_stag_rel):
         assert self._G_interp is not None, 'Grid must be computed.'
-        return self._G_interp(freq_rel, pi_c_stag_rel)
+        return self._G_interp(freq_norm_rel, pi_c_stag_rel)
 
     def compute(self):
         for branch in self.branches:
@@ -183,11 +183,11 @@ class Characteristics(metaclass=ABCMeta):
         for n, branch in enumerate(self.branches):
             if n == 0:
                 plt.plot(
-                    branch.G_rel, branch.pi_c_stag_rel, color='red', ls='--', lw=1, marker='s', ms=3, label='Init'
+                    branch.G_norm_rel, branch.pi_c_stag_rel, color='red', ls='--', lw=1, marker='s', ms=3, label='Init'
                 )
             else:
                 plt.plot(
-                    branch.G_rel, branch.pi_c_stag_rel, color='red', ls='--', lw=1, marker='s', ms=3
+                    branch.G_norm_rel, branch.pi_c_stag_rel, color='red', ls='--', lw=1, marker='s', ms=3
                 )
         plt.xlabel(r'$\bar{G}_{пр}$', fontsize=10)
         plt.ylabel(r'$\bar{\pi}_{к}^*$', fontsize=10)
@@ -202,11 +202,11 @@ class Characteristics(metaclass=ABCMeta):
         for n, branch in enumerate(self.branches):
             if n == 0:
                 plt.plot(
-                    branch.G_rel, branch.eta_c_stag_rel, color='red', ls='--', lw=1, marker='s', ms=3, label='Init'
+                    branch.G_norm_rel, branch.eta_c_stag_rel, color='red', ls='--', lw=1, marker='s', ms=3, label='Init'
                 )
             else:
                 plt.plot(
-                    branch.G_rel, branch.eta_c_stag_rel, color='red', ls='--', lw=1, marker='s', ms=3
+                    branch.G_norm_rel, branch.eta_c_stag_rel, color='red', ls='--', lw=1, marker='s', ms=3
                 )
         plt.xlabel(r'$\bar{G}_{пр}$', fontsize=10)
         plt.ylabel(r'$\bar{\eta}_{к}$', fontsize=10)
@@ -218,19 +218,58 @@ class Characteristics(metaclass=ABCMeta):
         plt.legend()
         plt.show()
 
+    def plot_modes_line(self, pi_c_stag_rel_arr, G_norm_rel_arr, eta_c_stag_rel_arr, figsize=(7, 6), fname_base=None):
+        plt.figure(figsize=figsize)
+        for n, branch in enumerate(self.branches):
+            if n == 0:
+                plt.plot(
+                    branch.G_norm_rel, branch.pi_c_stag_rel, color='red', ls='-', lw=1, marker='s', ms=3, label='1'
+                )
+            else:
+                plt.plot(
+                    branch.G_norm_rel, branch.pi_c_stag_rel, color='red', ls='-', lw=1, marker='s', ms=3
+                )
+        plt.plot(G_norm_rel_arr, pi_c_stag_rel_arr, color='black', lw=1.5, marker='o', ms=3, label='2')
+        plt.xlabel(r'$\bar{G}_{пр}$', fontsize=10)
+        plt.ylabel(r'$\bar{\pi}_{к}^*$', fontsize=10)
+        plt.grid()
+        plt.legend(fontsize=12)
+        if fname_base:
+            plt.savefig(fname_base + 'G_pi_c_axis.png')
+        plt.show()
+
+        plt.figure(figsize=figsize)
+        for n, branch in enumerate(self.branches):
+            if n == 0:
+                plt.plot(
+                    branch.G_norm_rel, branch.eta_c_stag_rel, color='red', ls='-', lw=1, marker='s', ms=3, label='1'
+                )
+            else:
+                plt.plot(
+                    branch.G_norm_rel, branch.eta_c_stag_rel, color='red', ls='-', lw=1, marker='s', ms=3
+                )
+        plt.plot(G_norm_rel_arr, eta_c_stag_rel_arr, color='black', lw=1.5, marker='o', ms=3, label='2')
+        plt.xlabel(r'$\bar{G}_{пр}$', fontsize=10)
+        plt.ylabel(r'$\bar{\eta}_{к}$', fontsize=10)
+        plt.grid()
+        plt.legend(fontsize=12)
+        if fname_base:
+            plt.savefig(fname_base + 'G_pi_c_axis.png')
+        plt.show()
+
     def plot_branches_2d(self, frequency_int=(0.65, 1.15), branch_num: int = 10, figsize=(7, 10), pnt_num=1000):
         frequencies = np.linspace(frequency_int[0], frequency_int[1], branch_num)
 
         plt.figure(figsize=figsize)
         plt.subplot(211)
         for branch in self.branches:
-            plt.scatter(branch.G_rel, branch.pi_c_stag_rel, c='blue', s=10)
+            plt.scatter(branch.G_norm_rel, branch.pi_c_stag_rel, c='blue', s=10)
         pi_c_arr = np.linspace(
             min(self.combine_branches(self.G_grid[1])),
             max(self.combine_branches(self.G_grid[1])), pnt_num
         )
         for frequency in frequencies:
-            G_pi_arr = [self.get_G_rel(frequency, pi_c) for pi_c in pi_c_arr]
+            G_pi_arr = [self.get_G_norm_rel(frequency, pi_c) for pi_c in pi_c_arr]
             plt.plot(G_pi_arr, pi_c_arr, color='red', lw=1)
         plt.xlabel(r'$\bar{G}_{пр}$', fontsize=10)
         plt.ylabel(r'$\bar{\pi}_{к}^*$', fontsize=10)
@@ -246,7 +285,7 @@ class Characteristics(metaclass=ABCMeta):
 
         plt.subplot(212)
         for branch in self.branches:
-            plt.scatter(branch.G_rel, branch.eta_c_stag_rel, c='blue', s=10)
+            plt.scatter(branch.G_norm_rel, branch.eta_c_stag_rel, c='blue', s=10)
         G_eta_arr = np.linspace(
             min(self.combine_branches(self.eta_c_grid[1])),
             max(self.combine_branches(self.eta_c_grid[1])), pnt_num

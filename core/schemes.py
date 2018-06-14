@@ -13,8 +13,8 @@ import enum
 
 
 class SchemeSolvingOption(enum.Enum):
-    POWER = 0
-    CONST_TEMP = 1
+    CLIMATIC = 0
+    VAR_FUEL_RATE = 1
 
 
 class Scheme(metaclass=ABCMeta):
@@ -29,19 +29,19 @@ class Scheme(metaclass=ABCMeta):
         self.eta_e = None
 
     def get_option(self, option_args: dict):
-        if self.get_power_option_condition(option_args):
-            return SchemeSolvingOption.POWER
-        elif self.get_const_temp_option_condition(option_args):
-            return SchemeSolvingOption.CONST_TEMP
+        if self.get_climatic_char_option_condition(option_args):
+            return SchemeSolvingOption.CLIMATIC
+        elif self.get_var_fuel_rate_option_condition(option_args):
+            return SchemeSolvingOption.VAR_FUEL_RATE
         else:
             raise Exception('Incorrect set of scheme solving options.')
 
     @abstractmethod
-    def get_const_temp_option_condition(self, option_args: dict) -> bool:
+    def get_var_fuel_rate_option_condition(self, option_args: dict) -> bool:
         pass
 
     @abstractmethod
-    def get_power_option_condition(self, option_args: dict) -> bool:
+    def get_climatic_char_option_condition(self, option_args: dict) -> bool:
         pass
 
     @classmethod
@@ -64,11 +64,11 @@ class Scheme(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def _solve_with_power_option(self):
+    def _solve_with_climatic_char_option(self):
         pass
 
     @abstractmethod
-    def _solve_with_const_temp_option(self):
+    def _solve_with_var_fuel_rate_option(self):
         pass
 
     def solve(self):
@@ -76,10 +76,10 @@ class Scheme(metaclass=ABCMeta):
         self.option = self.get_option(self.option_args)
         self.init_models_with_nominal_params()
 
-        if self.option == SchemeSolvingOption.POWER:
-            self._solve_with_power_option()
-        elif self.option == SchemeSolvingOption.CONST_TEMP:
-            self._solve_with_const_temp_option()
+        if self.option == SchemeSolvingOption.CLIMATIC:
+            self._solve_with_climatic_char_option()
+        elif self.option == SchemeSolvingOption.VAR_FUEL_RATE:
+            self._solve_with_var_fuel_rate_option()
         self.compute_modes_params()
 
     @abstractmethod
@@ -135,21 +135,22 @@ class TwoShaftGeneratorVar1(Scheme):
         self.precision = precision
         self.option_args = kwargs
 
-        self.comp_model = None
-        self.sink_model = None
-        self.comb_chamber_model = None
-        self.comp_turb_st1_model = None
-        self.comp_turb_st2_model = None
-        self.source_st1_model = None
-        self.source_st2_model = None
-        self.power_turb_model = None
-        self.outlet_model = None
+        self.comp_model: CompressorModel = None
+        self.sink_model: SinkModel = None
+        self.comb_chamber_model: CombustionChamberModel = None
+        self.comp_turb_st1_model: TurbineModel = None
+        self.comp_turb_st2_model: TurbineModel = None
+        self.source_st1_model: SourceModel = None
+        self.source_st2_model: SourceModel = None
+        self.power_turb_model: OutletTurbineModel = None
+        self.outlet_model: OutletModel = None
 
-    def get_const_temp_option_condition(self, option_args: dict) -> bool:
-        return 'T_g_stag_arr' in option_args and 'g_fuel_init' in option_args and 'T_stag_in' in option_args
+    def get_var_fuel_rate_option_condition(self, option_args: dict) -> bool:
+        return option_args and 'g_fuel_arr' in option_args and 'T_stag_in' in option_args
 
-    def get_power_option_condition(self, option_args: dict) -> bool:
-        return 'g_fuel' in option_args and 'T_stag_in_arr' in option_args and 'N_e_max' in option_args
+    def get_climatic_char_option_condition(self, option_args: dict) -> bool:
+        return 'g_fuel_init' in option_args and 'T_stag_in_arr' in option_args and 'N_e_max' \
+               and 'T_g_stag' in option_args
 
     def init_models_with_nominal_params(self):
         self.comp_model = CompressorModel(
@@ -378,9 +379,9 @@ class TwoShaftGeneratorVar1(Scheme):
             'T_out': []
         })
 
-        if self.option == SchemeSolvingOption.POWER:
-            for x, T_stag_in, g_fuel in zip(self.x_arr, self.option_args['T_stag_in_arr'], self.g_fuel_arr):
-                self.compute(*x, g_fuel=g_fuel, T_stag_in=T_stag_in)
+        if self.option == SchemeSolvingOption.CLIMATIC:
+            for x, T_stag_in, in zip(self.x_arr, self.option_args['T_stag_in_arr']):
+                self.compute(*x, T_stag_in=T_stag_in)
                 self.modes_params = self.modes_params.append(pd.DataFrame.from_dict({
                     'pi_c_stag_rel': [self.comp_model.pi_c_stag_rel],
                     'n_norm_rel': [self.comp_model.n_norm_rel],
@@ -403,9 +404,9 @@ class TwoShaftGeneratorVar1(Scheme):
                     'G_out': [self.outlet_model.G_out],
                     'T_out': [self.outlet_model.T_stag_out]
                 }), ignore_index=True)
-        elif self.option == SchemeSolvingOption.CONST_TEMP:
-            for x, T_g_stag in zip(self.x_arr, self.option_args['T_g_stag_arr']):
-                self.compute(*x, T_stag_in=self.option_args['T_stag_in'])
+        elif self.option == SchemeSolvingOption.VAR_FUEL_RATE:
+            for x, g_fuel in zip(self.x_arr, self.option_args['g_fuel_arr']):
+                self.compute(*x, g_fuel=g_fuel, T_stag_in=self.option_args['T_stag_in'])
                 self.modes_params = self.modes_params.append(pd.DataFrame.from_dict({
                     'pi_c_stag_rel': [self.comp_model.pi_c_stag_rel],
                     'n_norm_rel': [self.comp_model.n_norm_rel],
@@ -429,67 +430,62 @@ class TwoShaftGeneratorVar1(Scheme):
                     'T_out': [self.outlet_model.T_stag_out]
                 }), ignore_index=True)
 
-    def _solve_with_power_option(self):
-        self.x0 = np.array([
-            self.pi_c_stag_rel_init, self.n_norm_rel_init, self.pi_t1_stag_init,
-            self.pi_t2_stag_init, self.pi_t3_stag_init
-        ])
-        self.x_arr = np.zeros([len(self.option_args['T_stag_in_arr']), self.x0.shape[0]])
-        self.g_fuel_arr = np.zeros(len(self.option_args['T_stag_in_arr']))
-        for n, T_stag_in in enumerate(self.option_args['T_stag_in_arr']):
-            if n == 0:
-                sol = root(
-                    fun=lambda x: self.get_residuals(x[0], x[1], x[2], x[3], x[4],
-                                                     self.option_args['g_fuel'], T_stag_in),
-                    x0=self.x0
-                )
-                self.x_arr[n] = sol.x
-                self.g_fuel_arr[n] = self.option_args['g_fuel']
-                self.compute(*sol.x, self.option_args['g_fuel'], T_stag_in)
-                if self.N_e >= self.option_args['N_e_max']:
-                    sol = root(
-                        fun=lambda x: self.get_residuals(x[0], x[1], x[2], x[3], x[4], x[5],
-                                                         T_stag_in, N_e_max=self.option_args['N_e_max']),
-                        x0=np.array(list(self.x0) + [self.g_fuel_arr[n]])
-                    )
-                    self.x_arr[n] = sol.x[0:5]
-                    self.g_fuel_arr[n] = sol.x[5]
-            else:
-                sol = root(
-                    fun=lambda x: self.get_residuals(x[0], x[1], x[2], x[3], x[4],
-                                                     self.option_args['g_fuel'], T_stag_in),
-                    x0=self.x_arr[n - 1]
-                )
-                self.x_arr[n] = sol.x
-                self.g_fuel_arr[n] = self.option_args['g_fuel']
-                self.compute(*sol.x, self.option_args['g_fuel'], T_stag_in)
-                if self.N_e >= self.option_args['N_e_max']:
-                    sol = root(
-                        fun=lambda x: self.get_residuals(x[0], x[1], x[2], x[3], x[4], x[5],
-                                                         T_stag_in, N_e_max=self.option_args['N_e_max']),
-                        x0=np.array(list(self.x_arr[n - 1]) + [self.g_fuel_arr[n - 1]])
-                    )
-                    self.x_arr[n] = sol.x[0:5]
-                    self.g_fuel_arr[n] = sol.x[5]
-
-    def _solve_with_const_temp_option(self):
+    def _solve_with_climatic_char_option(self):
         self.x0 = np.array([
             self.pi_c_stag_rel_init, self.n_norm_rel_init, self.pi_t1_stag_init,
             self.pi_t2_stag_init, self.pi_t3_stag_init, self.option_args['g_fuel_init']
         ])
-        self.x_arr = np.zeros([len(self.option_args['T_g_stag_arr']), self.x0.shape[0]])
-        for n, T_g_stag in enumerate(self.option_args['T_g_stag_arr']):
+        self.x_arr = np.zeros([len(self.option_args['T_stag_in_arr']), self.x0.shape[0]])
+        for n, T_stag_in in enumerate(self.option_args['T_stag_in_arr']):
             if n == 0:
                 sol = root(
                     fun=lambda x: self.get_residuals(x[0], x[1], x[2], x[3], x[4], x[5],
-                                                     self.option_args['T_stag_in'], T_g_stag=T_g_stag),
+                                                     T_stag_in, T_g_stag=self.option_args['T_g_stag']),
+                    x0=self.x0
+                )
+                self.x_arr[n] = sol.x
+                self.compute(*sol.x,  T_stag_in)
+                if self.N_e >= self.option_args['N_e_max']:
+                    sol = root(
+                        fun=lambda x: self.get_residuals(x[0], x[1], x[2], x[3], x[4], x[5],
+                                                         T_stag_in, N_e_max=self.option_args['N_e_max']),
+                        x0=self.x0
+                    )
+                    self.x_arr[n] = sol.x
+            else:
+                sol = root(
+                    fun=lambda x: self.get_residuals(x[0], x[1], x[2], x[3], x[4], x[5],
+                                                     T_stag_in, T_g_stag=self.option_args['T_g_stag']),
+                    x0=self.x_arr[n - 1]
+                )
+                self.x_arr[n] = sol.x
+                self.compute(*sol.x, T_stag_in)
+                if self.N_e >= self.option_args['N_e_max']:
+                    sol = root(
+                        fun=lambda x: self.get_residuals(x[0], x[1], x[2], x[3], x[4], x[5],
+                                                         T_stag_in, N_e_max=self.option_args['N_e_max']),
+                        x0=self.x_arr[n - 1]
+                    )
+                    self.x_arr[n] = sol.x
+
+    def _solve_with_var_fuel_rate_option(self):
+        self.x0 = np.array([
+            self.pi_c_stag_rel_init, self.n_norm_rel_init, self.pi_t1_stag_init,
+            self.pi_t2_stag_init, self.pi_t3_stag_init
+        ])
+        self.x_arr = np.zeros([len(self.option_args['T_g_stag_arr']), self.x0.shape[0]])
+        for n, g_fuel in enumerate(self.option_args['g_fuel_arr']):
+            if n == 0:
+                sol = root(
+                    fun=lambda x: self.get_residuals(x[0], x[1], x[2], x[3], x[4], g_fuel,
+                                                     self.option_args['T_stag_in']),
                     x0=self.x0
                 )
                 self.x_arr[n] = sol.x
             else:
                 sol = root(
-                    fun=lambda x: self.get_residuals(x[0], x[1], x[2], x[3], x[4], x[5],
-                                                     self.option_args['T_stag_in'], T_g_stag=T_g_stag),
+                    fun=lambda x: self.get_residuals(x[0], x[1], x[2], x[3], x[4], g_fuel,
+                                                     self.option_args['T_stag_in']),
                     x0=self.x_arr[n - 1]
                 )
                 self.x_arr = sol.x
