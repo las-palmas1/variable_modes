@@ -86,21 +86,40 @@ class Scheme(metaclass=ABCMeta):
     def compute_modes_params(self):
         pass
 
-    def plot_characteristics(self, *args):
-        pass
-
     @classmethod
-    def plot_inlet_temp_plot(cls, T_stag_in_arr, value_arr, value_label, figsize=(7, 5), fname=None):
+    def plot(cls, value_x_arr, value_y_arr, xlabel, ylabel, figsize=(7, 5), label_font=14,
+             ticks_font=11, labels=True, fname=None):
         plt.figure(figsize=figsize)
-        plt.plot(T_stag_in_arr, value_arr, lw=1, color='orange')
-        plt.plot(T_stag_in_arr, value_arr, ls='', color='orange', marker='o', markersize=8)
-        plt.xlabel(r'$T_{вх}^*,\ C$', fontsize=12)
-        plt.ylabel(value_label, fontsize=12)
-        plt.xlim(min(T_stag_in_arr), max(T_stag_in_arr))
+        plt.plot(value_x_arr, value_y_arr, lw=1.5, color='red')
+        plt.plot(value_x_arr, value_y_arr, ls='', color='red', marker='o', markersize=6)
+        if labels:
+            plt.xlabel(xlabel, fontsize=label_font)
+            plt.ylabel(ylabel, fontsize=label_font)
+        plt.xticks(fontsize=ticks_font)
+        plt.yticks(fontsize=ticks_font)
+        plt.xlim(min(value_x_arr), max(value_x_arr))
         plt.grid()
-        plt.show()
         if fname:
             plt.savefig(fname)
+        plt.show()
+
+    @classmethod
+    def plot_inlet_temp_plot(cls, T_stag_in_arr, value_arr, value_label,
+                             figsize=(7, 5), label_font=14, ticks_font=11,
+                             labels=True, fname=None):
+        plt.figure(figsize=figsize)
+        plt.plot(T_stag_in_arr, value_arr, lw=1.5, color='red')
+        plt.plot(T_stag_in_arr, value_arr, ls='', color='red', marker='o', markersize=6)
+        if labels:
+            plt.xlabel(r'$T_{вх}^*,\ C$', fontsize=label_font)
+            plt.ylabel(value_label, fontsize=label_font)
+        plt.xticks(fontsize=ticks_font)
+        plt.yticks(fontsize=ticks_font)
+        plt.xlim(min(T_stag_in_arr), max(T_stag_in_arr))
+        plt.grid()
+        if fname:
+            plt.savefig(fname)
+        plt.show()
 
 
 class TwoShaftGeneratorVar1(Scheme):
@@ -402,7 +421,7 @@ class TwoShaftGeneratorVar1(Scheme):
                     'pi_c_stag': [self.comp_model.pi_c_stag],
                     'n': [self.comp_model.n],
                     'G_out': [self.outlet_model.G_out],
-                    'T_out': [self.outlet_model.T_stag_out]
+                    'T_out': [self.outlet_model.T_out]
                 }), ignore_index=True)
         elif self.option == SchemeSolvingOption.VAR_FUEL_RATE:
             for x, g_fuel in zip(self.x_arr, self.option_args['g_fuel_arr']):
@@ -427,7 +446,7 @@ class TwoShaftGeneratorVar1(Scheme):
                     'pi_c_stag': [self.comp_model.pi_c_stag],
                     'n': [self.comp_model.n],
                     'G_out': [self.outlet_model.G_out],
-                    'T_out': [self.outlet_model.T_stag_out]
+                    'T_out': [self.outlet_model.T_out]
                 }), ignore_index=True)
 
     def _solve_with_climatic_char_option(self):

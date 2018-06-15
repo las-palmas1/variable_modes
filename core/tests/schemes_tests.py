@@ -283,7 +283,7 @@ class SchemeTests(unittest.TestCase):
             outlet_diff_coef=2.5,
             precision=0.0001,
             g_fuel_init=self.comb_chamber.g_fuel_prime * self.comb_chamber.g_in,
-            T_stag_in_arr=np.linspace(298, 273, 20),
+            T_stag_in_arr=np.linspace(298, 268, 20),
             N_e_max=16.4e6,
             T_g_stag=self.comb_chamber.T_stag_out
         )

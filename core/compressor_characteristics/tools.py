@@ -218,22 +218,27 @@ class Characteristics(metaclass=ABCMeta):
         plt.legend()
         plt.show()
 
-    def plot_modes_line(self, pi_c_stag_rel_arr, G_norm_rel_arr, eta_c_stag_rel_arr, figsize=(7, 6), fname_base=None):
+    def plot_modes_line(self, pi_c_stag_rel_arr, G_norm_rel_arr, eta_c_stag_rel_arr,
+                        figsize=(7, 6), label_font=14, ticks_font=11, legend_font=14,
+                        labels=True, fname_base=None):
         plt.figure(figsize=figsize)
         for n, branch in enumerate(self.branches):
             if n == 0:
                 plt.plot(
-                    branch.G_norm_rel, branch.pi_c_stag_rel, color='red', ls='-', lw=1, marker='s', ms=3, label='1'
+                    branch.G_norm_rel, branch.pi_c_stag_rel, color='red', ls='-', lw=1, marker='s', ms=4, label='1'
                 )
             else:
                 plt.plot(
-                    branch.G_norm_rel, branch.pi_c_stag_rel, color='red', ls='-', lw=1, marker='s', ms=3
+                    branch.G_norm_rel, branch.pi_c_stag_rel, color='red', ls='-', lw=1, marker='s', ms=4
                 )
-        plt.plot(G_norm_rel_arr, pi_c_stag_rel_arr, color='black', lw=1.5, marker='o', ms=3, label='2')
-        plt.xlabel(r'$\bar{G}_{пр}$', fontsize=10)
-        plt.ylabel(r'$\bar{\pi}_{к}^*$', fontsize=10)
+        plt.plot(G_norm_rel_arr, pi_c_stag_rel_arr, color='black', lw=1, marker='o', ms=3, label='2')
+        if labels:
+            plt.xlabel(r'$\bar{G}_{пр}$', fontsize=label_font)
+            plt.ylabel(r'$\bar{\pi}_{к}^*$', fontsize=label_font)
+        plt.xticks(fontsize=ticks_font)
+        plt.yticks(fontsize=ticks_font)
         plt.grid()
-        plt.legend(fontsize=12)
+        plt.legend(fontsize=legend_font)
         if fname_base:
             plt.savefig(fname_base + 'G_pi_c_axis.png')
         plt.show()
@@ -242,19 +247,22 @@ class Characteristics(metaclass=ABCMeta):
         for n, branch in enumerate(self.branches):
             if n == 0:
                 plt.plot(
-                    branch.G_norm_rel, branch.eta_c_stag_rel, color='red', ls='-', lw=1, marker='s', ms=3, label='1'
+                    branch.G_norm_rel, branch.eta_c_stag_rel, color='red', ls='-', lw=1, marker='s', ms=4, label='1'
                 )
             else:
                 plt.plot(
-                    branch.G_norm_rel, branch.eta_c_stag_rel, color='red', ls='-', lw=1, marker='s', ms=3
+                    branch.G_norm_rel, branch.eta_c_stag_rel, color='red', ls='-', lw=1, marker='s', ms=4
                 )
-        plt.plot(G_norm_rel_arr, eta_c_stag_rel_arr, color='black', lw=1.5, marker='o', ms=3, label='2')
-        plt.xlabel(r'$\bar{G}_{пр}$', fontsize=10)
-        plt.ylabel(r'$\bar{\eta}_{к}$', fontsize=10)
+        plt.plot(G_norm_rel_arr, eta_c_stag_rel_arr, color='black', lw=1, marker='o', ms=3, label='2')
+        if labels:
+            plt.xlabel(r'$\bar{G}_{пр}$', fontsize=label_font)
+            plt.ylabel(r'$\bar{\eta}_{к}$', fontsize=label_font)
+        plt.xticks(fontsize=ticks_font)
+        plt.yticks(fontsize=ticks_font)
         plt.grid()
-        plt.legend(fontsize=12)
+        plt.legend(fontsize=legend_font)
         if fname_base:
-            plt.savefig(fname_base + 'G_pi_c_axis.png')
+            plt.savefig(fname_base + 'eta_pi_c_axis.png')
         plt.show()
 
     def plot_branches_2d(self, frequency_int=(0.65, 1.15), branch_num: int = 10, figsize=(7, 10), pnt_num=1000):
