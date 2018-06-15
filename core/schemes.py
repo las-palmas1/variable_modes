@@ -338,7 +338,7 @@ class TwoShaftGeneratorVar1(Scheme):
         self.eta_e = 3600 / (self.C_e * self.comb_chamber_model.work_fluid_out.Q_n)
 
     def get_residuals(self, pi_c_stag_rel, n_norm_rel, pi_t1_stag, pi_t2_stag, pi_t3_stag, g_fuel, T_stag_in, **kwargs):
-        print('Residual computing.')
+        print('Residual computing.\n')
         print('pi_c_stag_rel = %.3f' % pi_c_stag_rel)
         print('n_norm_rel = %.3f' % n_norm_rel)
         print('pi_t1_stag = %.2f' % pi_t1_stag)
@@ -362,11 +362,12 @@ class TwoShaftGeneratorVar1(Scheme):
         print('p_out_res = %.3f\n' % p_out_res)
 
         if 'T_g_stag' in kwargs:
-            T_res = kwargs['T_g_stag'] - self.comb_chamber.T_stag_out
+            T_res = kwargs['T_g_stag'] - self.comb_chamber_model.T_stag_out
+            print('T_res = %.3f\n' % T_res)
             return G_t1_res, G_t2_res, G_t3_res, L_res, p_out_res, T_res
         elif 'N_e_max' in kwargs:
             N_e_res = kwargs['N_e_max'] - self.N_e
-            print('N_e_res = %.3f\n' % p_out_res)
+            print('N_e_res = %.3f\n' % N_e_res)
             return G_t1_res, G_t2_res, G_t3_res, L_res, p_out_res, N_e_res
         else:
             return G_t1_res, G_t2_res, G_t3_res, L_res, p_out_res
