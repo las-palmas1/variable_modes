@@ -198,14 +198,14 @@ def compute_cycle_and_nodes(pi_c_stag=17, stage_num_arr=[int(i) for i in np.lins
 
         res = max(eta_stag_p_c_res, eta_stag_p_pt_res, eta_stag_p_ct_res)
 
-    return solver, inlet, comp, sink, comb_chamber, comp_turbine, power_turbine, outlet, load
+    return solver, inlet, comp, sink, comb_chamber, comp_turbine, power_turbine, outlet, load, comp_cycle
 
 
 class TestUnitsNominalCalculation(unittest.TestCase):
     def setUp(self):
         self.pi_c_stag = 17
         self.solver, self.inlet, self.comp, self.sink, self.comb_chamber, self.comp_turbine, \
-        self.power_turbine, self.outlet, self.load = compute_cycle_and_nodes(
+        self.power_turbine, self.outlet, self.load, self.comp_cycle = compute_cycle_and_nodes(
             self.pi_c_stag, stage_num_arr=[int(i) for i in np.linspace(16, 22, 7)],
             H_t_rel1_arr=np.linspace(0.12, 0.23, 6), H_t_rel_delta=-0.06,
             c1_a_rel1_arr=np.linspace(0.45, 0.55, 5), c1_a_rel_delta=0.1
@@ -254,7 +254,7 @@ class SchemeTests(unittest.TestCase):
     def setUp(self):
         self.pi_c_stag = 17
         self.solver, self.inlet, self.comp, self.sink, self.comb_chamber, self.comp_turbine, \
-        self.power_turbine, self.outlet, self.load = compute_cycle_and_nodes(
+        self.power_turbine, self.outlet, self.load, self.comp_cycle = compute_cycle_and_nodes(
             self.pi_c_stag, stage_num_arr=[int(i) for i in np.linspace(16, 22, 7)],
             H_t_rel1_arr=np.linspace(0.15, 0.30, 6), H_t_rel_delta=-0.06,
             c1_a_rel1_arr=np.linspace(0.45, 0.55, 5), c1_a_rel_delta=0.1
@@ -262,7 +262,7 @@ class SchemeTests(unittest.TestCase):
         self.power_turbine_cycle: Turbine = self.solver.get_sorted_unit_list()[7]
         self.scheme = TwoShaftGeneratorVar1(
             inlet=self.inlet,
-            compressor=self.comp,
+            compressor=self.comp_cycle,
             comp_turbine=self.comp_turbine,
             power_turbine=self.power_turbine,
             comb_chamber=self.comb_chamber,
@@ -270,6 +270,8 @@ class SchemeTests(unittest.TestCase):
             p_stag_in=self.inlet.p_stag_in,
             T_a=self.inlet.T_stag_in,
             p_a=self.inlet.p_stag_in,
+            G_nom=self.comp.G,
+            n_nom=self.comp.n,
             g_cool_sum=self.sink.g_cooling + self.sink.g_outflow,
             g_cool_st1=0,
             g_cool_st2=0,
@@ -293,9 +295,9 @@ class SchemeTests(unittest.TestCase):
         self.assertEqual(self.scheme.comp_model.p_stag_in_nom, self.inlet.p_stag_in)
         self.assertEqual(self.scheme.comp_model.T_stag_in_nom, self.inlet.T_stag_in)
         self.assertEqual(self.scheme.comp_model.n_nom, self.comp.n)
-        self.assertEqual(self.scheme.comp_model.eta_c_stag_nom, self.comp.eta_c_stag)
+        self.assertEqual(self.scheme.comp_model.eta_c_stag_nom, self.comp_cycle.eta_stag)
         self.assertEqual(self.scheme.comp_model.G_in_nom, self.comp.G)
-        self.assertEqual(self.scheme.comp_model.pi_c_stag_nom, self.comp.pi_c_stag)
+        self.assertEqual(self.scheme.comp_model.pi_c_stag_nom, self.comp_cycle.pi_c)
 
     def test_sink_nominal_parameters_setting(self):
         self.scheme.init_models_with_nominal_params()
@@ -396,7 +398,7 @@ class SchemeTests(unittest.TestCase):
                             self.comb_chamber.g_fuel_prime * self.comb_chamber.g_in,
                             self.inlet.T_stag_in)
 
-        T_comp_out_res = abs(self.scheme.comp_model.T_stag_out - self.comp.last.T3_stag) / self.comp.last.T3_stag
+        T_comp_out_res = abs(self.scheme.comp_model.T_stag_out - self.comp_cycle.T_stag_out) / self.comp_cycle.T_stag_out
         T_g_res = abs(
             self.scheme.comb_chamber_model.T_stag_out - self.comb_chamber.T_stag_out) / self.comb_chamber.T_stag_out
         T_st1_res = abs(
@@ -406,7 +408,7 @@ class SchemeTests(unittest.TestCase):
         T_pt_res = abs(
             self.scheme.power_turb_model.T_stag_out - self.power_turbine.last.T_st_stag) / self.power_turbine.last.T_st_stag
 
-        p_comp_out_res = abs(self.scheme.comp_model.p_stag_out - self.comp.last.p3_stag) / self.comp.last.p3_stag
+        p_comp_out_res = abs(self.scheme.comp_model.p_stag_out - self.comp_cycle.p_stag_out) / self.comp_cycle.p_stag_out
         p_g_res = abs(
             self.scheme.comb_chamber_model.p_stag_out - self.comb_chamber.p_stag_out) / self.comb_chamber.p_stag_out
         p_st1_res = abs(
@@ -416,7 +418,7 @@ class SchemeTests(unittest.TestCase):
         p_pt_res = abs(
             self.scheme.power_turb_model.p_stag_out - self.power_turbine.last.p2_stag) / self.power_turbine.last.p2_stag
 
-        L_c = self.comp.c_p_av * (self.comp.last.T3_stag - self.comp.T0_stag)
+        L_c = self.comp_cycle.consumable_labour
         L_c_res = abs(
             self.scheme.comp_model.L - L_c) / L_c
         L_st1_res = abs(
@@ -427,7 +429,7 @@ class SchemeTests(unittest.TestCase):
             self.scheme.power_turb_model.L + self.power_turbine.L_t_sum) / self.power_turbine.L_t_sum
 
         eta_c_res = abs(
-            self.scheme.comp_model.eta_c_stag - self.comp.eta_c_stag) / self.comp.eta_c_stag
+            self.scheme.comp_model.eta_c_stag - self.comp_cycle.eta_stag) / self.comp_cycle.eta_stag
         eta_st1_res = abs(
             self.scheme.comp_turb_st1_model.eta_t_stag - self.comp_turbine[0].eta_t_stag) / self.comp_turbine[0].eta_t_stag
         eta_st2_res = abs(

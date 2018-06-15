@@ -6,12 +6,12 @@ from .interp import Interp2D
 class TestsBranch(unittest.TestCase):
     def setUp(self):
         self.branch = FrequencyBranch(
-            freq_norm_rel=0.9,
-            pi_c_stag_rel=[0.28, 0.335, 0.36, 0.39, 0.465, 0.495, 0.555, 0.65, 0.74, 0.77],
-            G_norm_rel=[0.785, 0.784, 0.7835, 0.7825, 0.780, 0.778, 0.776, 0.77, 0.75, 0.735],
-            eta_c_stag_rel=[0.91, 0.92, 0.93, 0.94, 0.96, 0.98, 1.0, 1.008, 1.003, 0.988],
+            freq_norm_rel=1.00,
+            pi_c_stag_rel=[0.43, 0.57, 0.64, 0.725, 0.77, 0.88, 0.94, 1.00, 1.09, 1.13, 1.15],
+            G_norm_rel=[1.019, 1.016, 1.013, 1.011, 1.009, 1.006, 1.004, 1.000, 0.991, 0.985, 0.978],
+            eta_c_stag_rel=[0.9, 0.92, 0.94, 0.96, 0.98, 1.00, 1.003, 1.0, 0.98, 0.96, 0.94],
             G_spline_deg=3,
-            eta_c_spline_deg=3
+            eta_c_spline_deg=2
             )
 
     def test_plot_branch_without_computing_opt_values(self):

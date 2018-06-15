@@ -1,7 +1,7 @@
 from .models import *
-from gas_turbine_cycle.core.turbine_lib import CombustionChamber, Outlet, Inlet
+from gas_turbine_cycle.core.turbine_lib import CombustionChamber, Outlet, Inlet, Compressor
 from .compressor_characteristics.storage import Characteristics, From16To18Pi
-from compressor.average_streamline.compressor import Compressor
+# from compressor.average_streamline.compressor import Compressor
 from turbine.average_streamline.turbine import Turbine
 from abc import ABCMeta, abstractmethod
 from scipy.optimize import root
@@ -126,7 +126,7 @@ class TwoShaftGeneratorVar1(Scheme):
     def __init__(
             self, inlet: Inlet, compressor: Compressor, comp_turbine: Turbine, power_turbine: Turbine,
             comb_chamber: CombustionChamber, outlet: Outlet, p_stag_in,
-            T_a, p_a, g_cool_sum, g_cool_st1, g_cool_st2, eta_r, pi_c_stag_rel_init, n_norm_rel_init,
+            T_a, p_a, G_nom, n_nom, g_cool_sum, g_cool_st1, g_cool_st2, eta_r, pi_c_stag_rel_init, n_norm_rel_init,
             pi_t1_stag_init, pi_t2_stag_init, pi_t3_stag_init,
             comp_char: Characteristics=From16To18Pi(), outlet_diff_coef=2, precision=0.0001, **kwargs
     ):
@@ -139,6 +139,8 @@ class TwoShaftGeneratorVar1(Scheme):
         self.p_stag_in = p_stag_in
         self.T_a = T_a
         self.p_a = p_a
+        self.G_nom = G_nom
+        self.n_nom = n_nom
         self.g_cool_sum = g_cool_sum
         self.g_cool_st1 = g_cool_st1
         self.g_cool_st2 = g_cool_st2
@@ -180,10 +182,10 @@ class TwoShaftGeneratorVar1(Scheme):
             n_norm_rel=None,
             T_stag_in_nom=self.inlet.T_stag_in,
             p_stag_in_nom=self.inlet.p_stag_in,
-            G_in_nom=self.compressor.G,
-            eta_c_stag_nom=self.compressor.eta_c_stag,
-            n_nom=self.compressor.n,
-            pi_c_stag_nom=self.compressor.pi_c_stag,
+            G_in_nom=self.G_nom,
+            eta_c_stag_nom=self.compressor.eta_stag,
+            n_nom=self.n_nom,
+            pi_c_stag_nom=self.compressor.pi_c,
             p_a=self.p_a,
             T_a=self.T_a,
             G_fuel_in=0,
