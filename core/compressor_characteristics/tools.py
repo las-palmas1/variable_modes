@@ -220,8 +220,10 @@ class Characteristics(metaclass=ABCMeta):
 
     def plot_modes_line(self, pi_c_stag_rel_arr, G_norm_rel_arr, eta_c_stag_rel_arr,
                         figsize=(7, 6), label_font=14, ticks_font=11, legend_font=14,
-                        labels=True, fname_base=None):
+                        labels=True, G_lim=None, pi_c_lim=None, eta_c_lim=None, fname_base=None):
         plt.figure(figsize=figsize)
+        pi_c_stag_rel_bound = [branch.pi_c_stag_rel[len(branch.pi_c_stag_rel) - 1] for branch in self.branches]
+        G_norm_rel_bound = [branch.G_norm_rel[len(branch.G_norm_rel) - 1] for branch in self.branches]
         for n, branch in enumerate(self.branches):
             if n == 0:
                 plt.plot(
@@ -231,12 +233,17 @@ class Characteristics(metaclass=ABCMeta):
                 plt.plot(
                     branch.G_norm_rel, branch.pi_c_stag_rel, color='red', ls='-', lw=1, marker='s', ms=4
                 )
-        plt.plot(G_norm_rel_arr, pi_c_stag_rel_arr, color='black', lw=1, marker='o', ms=3, label='2')
+        plt.plot(G_norm_rel_arr, pi_c_stag_rel_arr, color='black', lw=2, label='2')
+        plt.plot(G_norm_rel_bound, pi_c_stag_rel_bound, color='blue', lw=2, label='3')
         if labels:
             plt.xlabel(r'$\bar{G}_{пр}$', fontsize=label_font)
             plt.ylabel(r'$\bar{\pi}_{к}^*$', fontsize=label_font)
         plt.xticks(fontsize=ticks_font)
         plt.yticks(fontsize=ticks_font)
+        if G_lim:
+            plt.xlim(*G_lim)
+        if pi_c_lim:
+            plt.ylim(*pi_c_lim)
         plt.grid()
         plt.legend(fontsize=legend_font)
         if fname_base:
@@ -253,12 +260,16 @@ class Characteristics(metaclass=ABCMeta):
                 plt.plot(
                     branch.G_norm_rel, branch.eta_c_stag_rel, color='red', ls='-', lw=1, marker='s', ms=4
                 )
-        plt.plot(G_norm_rel_arr, eta_c_stag_rel_arr, color='black', lw=1, marker='o', ms=3, label='2')
+        plt.plot(G_norm_rel_arr, eta_c_stag_rel_arr, color='black', lw=2, label='2')
         if labels:
             plt.xlabel(r'$\bar{G}_{пр}$', fontsize=label_font)
             plt.ylabel(r'$\bar{\eta}_{к}$', fontsize=label_font)
         plt.xticks(fontsize=ticks_font)
         plt.yticks(fontsize=ticks_font)
+        if G_lim:
+            plt.xlim(*G_lim)
+        if eta_c_lim:
+            plt.ylim(*eta_c_lim)
         plt.grid()
         plt.legend(fontsize=legend_font)
         if fname_base:

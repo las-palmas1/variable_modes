@@ -90,8 +90,7 @@ class Scheme(metaclass=ABCMeta):
     def plot(cls, value_x_arr, value_y_arr, xlabel, ylabel, figsize=(7, 5), label_font=14,
              ticks_font=11, labels=True, fname=None):
         plt.figure(figsize=figsize)
-        plt.plot(value_x_arr, value_y_arr, lw=1.5, color='red')
-        plt.plot(value_x_arr, value_y_arr, ls='', color='red', marker='o', markersize=6)
+        plt.plot(value_x_arr, value_y_arr, lw=2, color='red')
         if labels:
             plt.xlabel(xlabel, fontsize=label_font)
             plt.ylabel(ylabel, fontsize=label_font)
@@ -108,8 +107,7 @@ class Scheme(metaclass=ABCMeta):
                              figsize=(7, 5), label_font=14, ticks_font=11,
                              labels=True, fname=None):
         plt.figure(figsize=figsize)
-        plt.plot(T_stag_in_arr, value_arr, lw=1.5, color='red')
-        plt.plot(T_stag_in_arr, value_arr, ls='', color='red', marker='o', markersize=6)
+        plt.plot(T_stag_in_arr, value_arr, lw=2, color='red')
         if labels:
             plt.xlabel(r'$T_{вх}^*,\ C$', fontsize=label_font)
             plt.ylabel(value_label, fontsize=label_font)
